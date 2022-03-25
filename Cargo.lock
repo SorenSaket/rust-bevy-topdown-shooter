@@ -600,6 +600,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_screen_diags"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00c07ebf6de5b7111406db8f272c8ce7343bdbd033d96a5e7ef73b5cfc2eed5a"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_sprite"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2795,6 +2804,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_prototype_lyon",
+ "bevy_screen_diags",
 ]
 
 [[package]]

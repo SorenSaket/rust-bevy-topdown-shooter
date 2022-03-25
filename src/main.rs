@@ -4,7 +4,7 @@ use bevy::{
     sprite::collide_aabb::{collide, Collision},
 };
 use bevy_prototype_lyon::prelude::*;
-
+use bevy_screen_diags::{ScreenDiagsPlugin, ScreenDiagsTimer};
 
 use crate::player::PluginPlayer;
 use crate::enemy::PluginEnemy;
@@ -16,6 +16,7 @@ mod enemy;
 const TIME_STEP: f32 = 1.0 / 60.0;
 fn main() {
     App::new()
+        .insert_resource(WindowDescriptor{width: 800.0, height: 600.0, title: "sjovt".to_string(), vsync: true, resizable: false, ..Default::default()})
 
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(GameState { active: false })
@@ -28,7 +29,9 @@ fn main() {
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_plugin(PluginPlayer)
         .add_plugin(PluginEnemy)
-        
+
+        .add_plugin(bevy_screen_diags::ScreenDiagsPlugin)
+        .add_system(mouse_handler)
         .run();
 }
 
@@ -48,7 +51,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.spawn_bundle(UiCameraBundle::default());
 }
-
+fn mouse_handler(
+    mouse_button_input: Res<Input<MouseButton>>,
+    mut query: Query<&mut Timer, With<ScreenDiagsTimer>>,
+) {
+    if mouse_button_input.just_released(MouseButton::Left) {
+        let mut timer = query.single_mut();
+        if timer.paused() {
+            timer.unpause();
+        } else {
+            timer.pause();
+        }
+    }
+}
 
 fn system_spawner(time: Res<Time>, mut timer: ResMut<SpawnTimer>, mut commands: Commands) {
 

@@ -13,6 +13,7 @@ impl Plugin for PluginPlayer {
         .insert_resource(PlayerStates{ counter: 0})    
         .add_system(gamepad_connections)
         .add_system(gamepad_input_events)
+        .add_startup_system(setup)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(1./60. as f64))
@@ -28,8 +29,16 @@ struct PlayerStates {
 
 #[derive(Component)]
 pub struct Player {
-    pub velocity: f32,
+    pub velocity: Vec2,
     pub gamepad : Gamepad
+}
+
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+
+    let new_entity = commands.spawn_bundle(SpriteBundle {
+        texture: asset_server.load("sword.png"),
+        ..Default::default()
+    });
 }
 
 fn spawn_player(commands: &mut Commands, playerID: usize){
@@ -48,8 +57,9 @@ fn spawn_player(commands: &mut Commands, playerID: usize){
             outline_mode: StrokeMode::new(Color::BLACK, 4.0),
         },
         Transform::default()
-    )).insert(Player{velocity : 0.0, gamepad: Gamepad(playerID)});
+    )).insert(Player{velocity : Vec2::new(0.,0.), gamepad: Gamepad(playerID)});
 }
+
 
 fn remove_player(commands: &mut Commands, playerID: usize){
 
@@ -57,15 +67,24 @@ fn remove_player(commands: &mut Commands, playerID: usize){
 
 
 
-fn system_player_movement(mut query: Query<(&Player, &mut Transform)>, axes: Res<Axis<GamepadAxis>>) {
-    let speed = 4.0;
-    for (player, mut transform) in query.iter_mut(){
+fn system_player_movement(mut query: Query<(&mut Player, &mut Transform)>, axes: Res<Axis<GamepadAxis>>) {
+    let acc = 1.5;
+    let friction = 0.1;
+
+    for (mut player, mut transform) in query.iter_mut(){
         let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
         let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-            transform.translation.x += x*speed;
-            transform.translation.y += y*speed;
+            player.velocity.x += x * acc;
+            player.velocity.y += y * acc;
         }
+
+        // Friction
+        player.velocity *= 1.0-friction;
+
+        // Apply Velocity
+        transform.translation.x += player.velocity.x;
+        transform.translation.y += player.velocity.y;
     }
 }
 
