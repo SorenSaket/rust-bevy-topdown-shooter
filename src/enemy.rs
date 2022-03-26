@@ -7,6 +7,8 @@ use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
 
+use bevy_rapier2d::prelude::*;
+
 use crate::player::{PluginPlayer, Player};
 pub struct PluginEnemy;
 
@@ -34,9 +36,8 @@ struct WaveState {
 pub struct Enemy;
 
 
-
 fn system_spawner_enemy(mut commands: Commands, time: Res<Time>, mut wave_state: ResMut<WaveState>){
-    if time.last_update().is_some() && time.last_update() .unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 1. {
+    if time.last_update().is_some() && time.last_update().unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 1. {
         return;
     } 
     else if time.last_update().is_some() {
@@ -61,28 +62,50 @@ fn create_enemy(commands : &mut Commands){
             outline_mode: StrokeMode::new(Color::BLACK, 4.0),
         },
         Transform::default()
-    )).insert(Enemy);
+    ))
+    .insert_bundle(ColliderBundle {
+        shape: ColliderShape::ball(32.).into(),
+        collider_type: ColliderType::Solid.into(),
+        flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
+        material: ColliderMaterial {
+            restitution: 0.7,
+            ..Default::default()
+        }.into(),
+        ..ColliderBundle::default()
+    }).insert_bundle( RigidBodyBundle {
+        body_type: RigidBodyType::KinematicPositionBased.into(),
+        ..Default::default()
+    }
+
+
+    )
+    
+    .insert(ColliderPositionSync::Discrete)
+    .insert(Enemy);
 }
 
 
 fn system_move_enemies(time: Res<Time>, 
     mut query: QuerySet<(
-        QueryState<(&mut Enemy, &mut Transform)>, 
+        QueryState<(&mut Enemy, &mut Transform, &mut RigidBodyPositionComponent)>, 
         QueryState<(&Transform), With<Player>>
     )>,) 
 {
-    let speed = 50.0;
+    let speed = 3.0;
 
 
 
     
-    if let Ok(&playerTransform) = query.q1().get_single() {
+    if let Ok(&player_transform) = query.q1().get_single() {
         
-        for (mut enemy, mut transform) in query.q0().iter_mut() {
+        for (mut enemy, mut transform, mut bodyPosition) in query.q0().iter_mut() {
 
-            let movement = (playerTransform.translation - transform.translation).normalize()  * speed * time.delta_seconds();
-
-            transform.translation += movement;
+            let movement = (player_transform.translation - transform.translation).normalize() * speed;
+           
+            bodyPosition.next_position.translation.x += movement.x;
+            bodyPosition.next_position.translation.y += movement.y;
+            //colliderPosition.translation.x = transform.translation.x;
+            //colliderPosition.translation.y = transform.translation.y;
         }
     }
 

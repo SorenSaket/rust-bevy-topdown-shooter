@@ -6,17 +6,31 @@ use bevy::{
 use bevy_prototype_lyon::prelude::*;
 use bevy_screen_diags::{ScreenDiagsPlugin, ScreenDiagsTimer};
 
+use bevy_rapier2d::prelude::*;
+
+use std::env;
+
+
+
 use crate::player::PluginPlayer;
 use crate::enemy::PluginEnemy;
-
+use crate::projectile::PluginProjectile;
 mod player;
 mod enemy;
+mod projectile;
+
+
+use debug::DebugPlugin;
+mod debug;
 
 /// An implementation of the classic game "Breakout"
-const TIME_STEP: f32 = 1.0 / 60.0;
+pub const TIME_STEP: f32 = 1.0 / 60.0;
+
 fn main() {
+    env::set_var("RUST_BACKTRACE", "full");
+
     App::new()
-        .insert_resource(WindowDescriptor{width: 800.0, height: 600.0, title: "sjovt".to_string(), vsync: true, resizable: false, ..Default::default()})
+        .insert_resource(WindowDescriptor{width: 800.0, height: 600.0, title: "sjovt".to_string(), vsync: false, resizable: false, ..Default::default()})
 
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(GameState { active: false })
@@ -27,11 +41,20 @@ fn main() {
 
         .add_startup_system(setup)
         .add_system(bevy::input::system::exit_on_esc_system)
+
+        // Physics Library Rapier
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+
+
         .add_plugin(PluginPlayer)
         .add_plugin(PluginEnemy)
+        .add_plugin(PluginProjectile)
+        
 
+       
+         //.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(bevy_screen_diags::ScreenDiagsPlugin)
-        .add_system(mouse_handler)
+        .add_plugin(DebugPlugin)
         .run();
 }
 
