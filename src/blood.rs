@@ -1,8 +1,10 @@
+//! Plugin to enable blood splatter effect in games
+// 
+
+
 use bevy::{
     prelude::*, render::render_resource::*,
 };
-use rand::{thread_rng, Rng};
-extern crate blit;
 
 pub struct PluginBlood;
 
@@ -12,54 +14,39 @@ pub struct BloodState {
     scale: f32,
     size: usize
 }
-
 impl BloodState{
     pub fn add_blood(&self, pos: Vec2, mut images: &mut ResMut<Assets<Image>>){
-        // 512 * 512 * 4 = 1048576
-
-        /* 
-        let halfSize = ((self.size as f32) * self.scale)/2.0;
-        
-
-        let x = (((pos.x-halfSize)/self.scale)) as usize;
-        
-        let y = (((pos.y-halfSize)/self.scale)) as usize;
-        */
-        //println!("a  x: {}, y: {}", pos.x,pos.y);
-        
         let halfSize = ((self.size as f32))/2.0;
         let x = (pos.x/self.scale+halfSize) as usize;        
         let y = (pos.y/self.scale+halfSize) as usize;
 //
-        // Add offset to center of image
-        //+ (self.size/2 * self.size))
-
         let index : usize = 
         // Convert 2d to 1d index
         ( x + y * self.size)
         // multiply by 4 stride of image data
         * 4 +3;
         
-        //incease opacity
+        //increase opacity
         if let Some(img) = images.get_mut(&self.blood){
             if index > 0 && index < img.data.len() {
                img.data[index as usize] = u8::saturating_add(img.data[index as usize] ,128);
             }
         }
-
-        /*if let Some(img) = images.get_mut(&self.blood){
-            img.data = vec![128; img.data.len()];
-        }*/
-       
-
     }
 }
 
 
+
+#[derive(Component)]
+pub struct Bloody;
+
+
+
 impl Plugin for PluginBlood {
      fn build(&self, app: &mut App) {
-       app.add_startup_system(setup);
-       
+       app
+       .add_startup_system(setup)
+       .add_system_to_stage(CoreStage::PostUpdate, system_bloodtrail);
     }
 }
 
@@ -133,5 +120,15 @@ fn setup(
             size: size_in_pixels as usize, 
             scale: scale
         });
-        
 } 
+
+
+fn system_bloodtrail( 
+	query_player : Query<(&Transform), (With<Bloody>, Changed<Transform>)>, 
+	mut images: ResMut<Assets<Image>>,
+	blood: ResMut<BloodState>
+){
+	for (transform) in query_player.iter(){
+		blood.add_blood(transform.translation.truncate(), &mut images);
+	}
+}

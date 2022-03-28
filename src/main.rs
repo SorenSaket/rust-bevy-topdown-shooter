@@ -190,18 +190,6 @@ fn system_health(
 	}
 }
 
-fn system_bloodtrail(
-	mut commands: Commands, 
-	query_player : Query<(&Player, &Transform)>, 
-	mut images: ResMut<Assets<Image>>,
-	blood: ResMut<BloodState>
-){
-	for (Player, transform) in query_player.iter(){
-		blood.add_blood(transform.translation.truncate(), &mut images);
-	}
-}
-
-
 
 fn system_spawner(time: Res<Time>, mut timer: ResMut<SpawnTimer>, mut commands: Commands) {
 
