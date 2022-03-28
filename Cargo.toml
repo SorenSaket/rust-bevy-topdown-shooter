@@ -11,6 +11,8 @@ bevy_prototype_lyon = "0.4.0"
 bevy_screen_diags = "*"
 bevy_rapier2d = { version = "*", features = [ "simd-nightly","parallel" ] }
 bevy-inspector-egui = "0.9.0"
+rand = "*"
+blit = "*"
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"

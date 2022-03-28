@@ -7,9 +7,8 @@ use bevy::core::FixedTimestep;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
 
-use bevy_rapier2d::prelude::*;
 
-use crate::player::{PluginPlayer, Player};
+use crate::{player::{PluginPlayer, Player}, Health};
 pub struct PluginEnemy;
 
 
@@ -36,74 +35,51 @@ struct WaveState {
 pub struct Enemy;
 
 
-fn system_spawner_enemy(mut commands: Commands, time: Res<Time>, mut wave_state: ResMut<WaveState>){
-    if time.last_update().is_some() && time.last_update().unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 1. {
+fn system_spawner_enemy(mut commands: Commands, time: Res<Time>, mut wave_state: ResMut<WaveState>, asset_server :Res<AssetServer> ){
+    if time.last_update().is_some() && time.last_update().unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 0.2 {
         return;
     } 
     else if time.last_update().is_some() {
         wave_state.last_spawn = time.last_update().unwrap();
     }
 
-    create_enemy(&mut commands);
+    create_enemy(&mut commands,asset_server);
 }
 
 
-fn create_enemy(commands : &mut Commands){
-    let shape = shapes::RegularPolygon {
-        sides: 4,
-        feature: shapes::RegularPolygonFeature::Radius(32.0),
-        ..shapes::RegularPolygon::default()
-    };
+fn create_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
+  
 
-    commands.spawn_bundle(GeometryBuilder::build_as(
-        &shape,
-        DrawMode::Outlined {
-            fill_mode: FillMode::color(Color::CYAN),
-            outline_mode: StrokeMode::new(Color::BLACK, 4.0),
-        },
-        Transform::default()
-    ))
-    .insert_bundle(ColliderBundle {
-        shape: ColliderShape::ball(32.).into(),
-        collider_type: ColliderType::Solid.into(),
-        flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
-        material: ColliderMaterial {
-            restitution: 0.7,
+    commands.spawn_bundle(SpriteBundle{
+        texture : asset_server.load("sh.png"),
+        transform: Transform{
+            translation : Vec3::new(0.0,0.0,0.5),
+            scale : Vec3::new(0.1,0.1,1.0),
             ..Default::default()
-        }.into(),
-        ..ColliderBundle::default()
-    }).insert_bundle( RigidBodyBundle {
-        body_type: RigidBodyType::KinematicPositionBased.into(),
+        },
         ..Default::default()
-    }
-
-
-    )
-    
-    .insert(ColliderPositionSync::Discrete)
-    .insert(Enemy);
+    })
+    .insert(Enemy)
+    .insert(Health{maxHealth: 10,health: 10});
 }
 
 
 fn system_move_enemies(time: Res<Time>, 
     mut query: QuerySet<(
-        QueryState<(&mut Enemy, &mut Transform, &mut RigidBodyPositionComponent)>, 
+        QueryState<(&mut Enemy, &mut Transform)>, 
         QueryState<(&Transform), With<Player>>
     )>,) 
 {
     let speed = 3.0;
 
-
-
-    
     if let Ok(&player_transform) = query.q1().get_single() {
         
-        for (mut enemy, mut transform, mut bodyPosition) in query.q0().iter_mut() {
+        for (mut enemy, mut transform) in query.q0().iter_mut() {
 
             let movement = (player_transform.translation - transform.translation).normalize() * speed;
            
-            bodyPosition.next_position.translation.x += movement.x;
-            bodyPosition.next_position.translation.y += movement.y;
+            transform.translation.x += movement.x;
+            transform.translation.y += movement.y;
             //colliderPosition.translation.x = transform.translation.x;
             //colliderPosition.translation.y = transform.translation.y;
         }

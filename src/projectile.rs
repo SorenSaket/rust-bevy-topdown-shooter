@@ -5,18 +5,21 @@ use bevy::{
     core::FixedTimestep,
 };
 
-use bevy_rapier2d::prelude::*;
 
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
 
+use crate::Health;
+use crate::enemy::Enemy;
+
 pub struct PluginProjectile;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Projectile{
     pub speed: f32,
     pub dir: f32,
     pub lifetime: f32,
+    pub damage: i32
 }
 
 impl Plugin for PluginProjectile {
@@ -29,7 +32,6 @@ impl Plugin for PluginProjectile {
                 .with_system(system_projectile_lifetime)
         )
         .add_system_to_stage(CoreStage::PostUpdate, system_handle_projectile_events);
-
     }
 }
 
@@ -64,46 +66,26 @@ pub fn spawn_projectile(
             },
         )
     )
-    // Collider
-    .insert_bundle(ColliderBundle {
-        shape: ColliderShape::ball(shape.radius).into(),
-        collider_type: ColliderType::Sensor.into(),
-        flags:ColliderFlags{
-            active_events: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(), 
-            active_collision_types: (ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_KINEMATIC).into(), 
-            ..Default::default() 
-        }.into(),
-        material: ColliderMaterial {
-            restitution: 0.7,
-            ..Default::default()
-        }.into(),
-        ..ColliderBundle::default()
-    }).insert_bundle( RigidBodyBundle {
-        body_type: RigidBodyType::KinematicPositionBased.into(),
-        ..Default::default()
-    })
-    .insert(ColliderPositionSync::Discrete)
-    .insert(Projectile{speed: 10., dir: dir, lifetime: 3.0});
+    .insert(Projectile{speed: 50., dir: dir, lifetime: 3.0, damage: 4});
 
 
 }
 
 fn system_handle_projectile_events(
-    mut intersection_events: EventReader<IntersectionEvent>,
-    mut contact_events: EventReader<ContactEvent>,
-    query: Query<Entity, With<Projectile>>,
+
+    query_projectile: Query<(Entity, &Projectile, &mut Transform), (Without<Enemy>)>,
+    mut query_enemy: Query<(Entity, &mut Transform, &mut Health), (With<Enemy>, Without<Projectile>)>,
     mut commands: Commands,
-    rapier_config: ResMut<RapierConfiguration>
 ) {
 
-   
-    for intersection_event in intersection_events.iter() {
-        println!("intersection_event");
-        commands.entity(intersection_event.collider1.entity()).despawn();
-    }
-
-    for contact_event in contact_events.iter() {
-        println!("contact_event");
+    for (entity_projectile, projectile, transform_projectile) in query_projectile.iter(){
+        for (entity_enemy, transform_enemy, mut health) in query_enemy.iter_mut(){
+            if(Vec2::distance(transform_projectile.translation.truncate(), transform_enemy.translation.truncate() )<40.0){
+                commands.entity(entity_projectile).despawn();
+                health.health -= projectile.damage;
+                break;
+            }
+        }
     }
 }
 
@@ -117,12 +99,12 @@ fn system_projectile_lifetime(time: Res<Time>, mut query: Query<(Entity,&mut Pro
 }
 
 fn system_move_projectiles(time: Res<Time>, 
-    mut query: Query<(&Projectile, &mut Transform, &mut RigidBodyPositionComponent)>) 
+    mut query: Query<(&Projectile, &mut Transform)>) 
 {
-    for (projectile, mut transform, mut colliderPosition) in query.iter_mut() {
+    for (projectile, mut transform) in query.iter_mut() {
 
-        colliderPosition.next_position.translation.x += projectile.dir.cos() * projectile.speed;
-        colliderPosition.next_position.translation.y += projectile.dir.sin() * projectile.speed;
+        transform.translation.x += projectile.dir.cos() * projectile.speed;
+        transform.translation.y += projectile.dir.sin() * projectile.speed;
         //colliderPosition.translation.x = transform.translation.x;
         //colliderPosition.translation.y = transform.translation.y;
         

@@ -5,10 +5,11 @@ use bevy::{
 };
 use bevy_prototype_lyon::prelude::*;
 
-use crate::projectile::{Projectile, spawn_projectile};
 use bevy_inspector_egui::Inspectable;
 
+use crate::{projectile::spawn_projectile, Shake, weapon::Weapon};
 
+use rand::prelude::random;
 pub struct PluginPlayer;
 
 
@@ -32,12 +33,12 @@ struct PlayerStates {
 }
 
 
-#[derive(Component, Copy, Clone)]
+#[derive(Component, Clone)]
 pub struct Player {
     pub velocity: Vec2,
+    pub weapon : Option<Entity>,
     pub gamepad : Gamepad
 }
-
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let new_entity = commands.spawn_bundle(SpriteBundle {
@@ -61,8 +62,11 @@ fn spawn_player(commands: &mut Commands, playerID: Gamepad){
             fill_mode: FillMode::color(Color::CYAN),
             outline_mode: StrokeMode::new(Color::BLACK, 4.0),
         },
-        Transform::default()
-    )).insert(Player{velocity : Vec2::new(0.,0.), gamepad:playerID});
+        Transform {
+            translation: Vec3::new(0.0,0.0,0.8),
+            ..Default::default()
+        }
+    )).insert(Player{velocity : Vec2::new(0.,0.), gamepad:playerID, weapon: None});
 }
 
 fn player_shoot(commands: &mut Commands, playerID: usize, dir: f32){
@@ -75,7 +79,15 @@ fn remove_player(commands: &mut Commands, playerID: usize){
 
 
 
-fn system_player_movement(mut query: Query<(&mut Player, &mut Transform)>, axes: Res<Axis<GamepadAxis>>, buttons: Res<Input<GamepadButton>>, mut commands : Commands) {
+fn system_player_movement(
+    mut query: Query<(&mut Player, &mut Transform)>, 
+    mut query_weapon: Query<(Entity, &Weapon, &mut Transform, &mut Sprite), Without<Player>>, 
+    mut query_camera: Query<&mut Shake, With<Camera>>,
+
+    axes: Res<Axis<GamepadAxis>>, 
+    buttons: Res<Input<GamepadButton>>, 
+    mut commands : Commands
+) {
     let acc = 1.5;
     let friction = 0.1;
 
@@ -92,12 +104,41 @@ fn system_player_movement(mut query: Query<(&mut Player, &mut Transform)>, axes:
             if(right_stick_pos.length_squared()< 0.02){
                 return;
             }*/
+        // Shooting
         if buttons.pressed(btn_rt2) {
             
             if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
-                spawn_projectile(&mut commands, transform.translation, f32::atan2(y,x));
+                spawn_projectile(&mut commands, transform.translation, f32::atan2(y,x) + random::<f32>());
+
+                let mut shaker = query_camera.single_mut();
+               
+                    shaker.time = 0.1;
             }
         }
+
+        //Weapon Rotation
+
+        if let Some(entity_playerWeapon) = &player.weapon{
+            if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
+                
+                for (entity_weapon, w,mut t, mut sprite_weapon) in query_weapon.iter_mut(){
+                    if &entity_weapon == entity_playerWeapon{
+                        let angle = f32::atan2(y,x);
+                        t.rotation = Quat::from_axis_angle(Vec3::Z, angle);
+                        if x < 0.0{
+                            sprite_weapon.flip_y = true;
+                        }else{
+                            sprite_weapon.flip_y = false;
+                        }
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+        
+
 
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
             player.velocity.x += x * acc;
