@@ -1,17 +1,14 @@
 use bevy::{
 	core::FixedTimestep,
 	prelude::*,
-	sprite::collide_aabb::{collide, Collision}, ecs::query,
-	render::*,
-	diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
 };
 use bevy_prototype_lyon::prelude::*;
-use bevy_screen_diags::{ScreenDiagsPlugin, ScreenDiagsTimer};
+use bevy_screen_diags::{ScreenDiagsTimer};
 use blood::BloodState;
 use player::Player;
-use rand::{random, Rng};
+use rand::{Rng};
 
-use std::env;
+
 
 use crate::player::PluginPlayer;
 mod player;
@@ -114,7 +111,7 @@ struct GameState{
 	active : bool,
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
 	// Add the game's entities to our world
 	// cameras
 	commands.spawn_bundle(OrthographicCameraBundle::new_2d()).insert(Shake{amount: 1.0, time: 0.0});
@@ -136,9 +133,9 @@ fn system_shake(mut query: Query<(&mut Shake, &mut Transform)>, time: Res<Time>,
 
 
 fn system_camera_move(
-	mut query_camera: Query<&mut Transform, (With<(Camera)>, Without<Player>)>, 
+	mut query_camera: Query<&mut Transform, (With<Camera>, Without<Player>)>, 
 	query_player: Query<&Transform, (With<Player>, Without<Camera>)>, 
-	time: Res<Time>
+	_time: Res<Time>
 ){
 	let cameraSpeed =0.1;
 	let mut avgPosition = Vec2::new(0.0,0.0);
@@ -147,7 +144,7 @@ fn system_camera_move(
 		avgPosition += transform_player.translation.truncate();
 	}
 
-	for (mut transform_camera) in  query_camera.iter_mut(){
+	for mut transform_camera in  query_camera.iter_mut(){
 		transform_camera.translation =
 		Vec2::lerp(
 			transform_camera.translation.truncate(), 

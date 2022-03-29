@@ -1,12 +1,11 @@
 use bevy::{
     prelude::*,
-    utils::Instant,
     ecs::schedule::SystemSet,
     core::FixedTimestep,
 };
 
 
-use bevy_prototype_lyon::entity::ShapeBundle;
+
 use bevy_prototype_lyon::prelude::*;
 
 use crate::Health;
@@ -56,8 +55,8 @@ impl Plugin for PluginProjectile {
 }
 
 fn setup(
-    mut commands: Commands,
-	mut asset_server: Res<AssetServer>
+    _commands: Commands,
+	_asset_server: Res<AssetServer>
 ){
 
 }
@@ -112,15 +111,15 @@ pub fn spawn_projectile(
 
 fn system_handle_projectile_events(
 
-    query_projectile: Query<(Entity, &Projectile, &mut Transform), (Without<Enemy>)>,
+    query_projectile: Query<(Entity, &Projectile, &mut Transform), Without<Enemy>>,
     mut query_enemy: Query<(Entity, &mut Transform, &mut Health), (With<Enemy>, Without<Projectile>)>,
     mut commands: Commands,
-    weapons: Res<WeaponData>
+    _weapons: Res<WeaponData>
 ) {
 
     for (entity_projectile, projectile, transform_projectile) in query_projectile.iter(){
-        for (entity_enemy, transform_enemy, mut health) in query_enemy.iter_mut(){
-            if(Vec2::distance(transform_projectile.translation.truncate(), transform_enemy.translation.truncate() )<40.0){
+        for (_entity_enemy, transform_enemy, mut health) in query_enemy.iter_mut(){
+            if Vec2::distance(transform_projectile.translation.truncate(), transform_enemy.translation.truncate() )<40.0 {
                 commands.entity(entity_projectile).despawn();
                 health.health -= projectile.damage;
                 break;
@@ -129,7 +128,7 @@ fn system_handle_projectile_events(
     }
 }
 
-fn system_projectile_lifetime(time: Res<Time>, mut query: Query<(Entity,&mut Projectile)>, mut commands : Commands){
+fn system_projectile_lifetime(_time: Res<Time>, mut query: Query<(Entity,&mut Projectile)>, mut commands : Commands){
     for (entity , mut projectile) in query.iter_mut() {
         projectile.lifetime -= 1.0/60.0;
         if projectile.lifetime <= 0.0 {
@@ -138,7 +137,7 @@ fn system_projectile_lifetime(time: Res<Time>, mut query: Query<(Entity,&mut Pro
     }
 }
 
-fn system_move_projectiles(time: Res<Time>, 
+fn system_move_projectiles(_time: Res<Time>, 
     mut query: Query<(&Projectile, &mut Transform)>) 
 {
     for (projectile, mut transform) in query.iter_mut() {

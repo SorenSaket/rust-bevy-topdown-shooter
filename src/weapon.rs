@@ -1,11 +1,11 @@
-use std::borrow::Borrow;
+
 
 use bevy::{
-    prelude::*, render::render_resource::*, utils::Instant,
+    prelude::*, utils::Instant,
 };
-use rand::{thread_rng, Rng, random};
+use rand::{random};
 
-use crate::{projectile::{Projectile, ProjectileSettings, spawn_projectile}, player::Player};
+use crate::{projectile::{ProjectileSettings, spawn_projectile}};
 
 pub struct PluginWeapon;
 
@@ -56,7 +56,7 @@ impl Plugin for PluginWeapon {
 
 fn setup(
     mut commands: Commands,
-	mut asset_server: Res<AssetServer>
+	asset_server: Res<AssetServer>
 ){
 	let mut weapondata = WeaponData {weapons : Vec::new() };
 
@@ -136,7 +136,7 @@ pub fn spawn_weapon(
 	time : Res<Time>,
 	weapons : Res<WeaponData>
 ){
-	for (entity_weapon, mut weapon, transform_weapon, sprite_weapon) in query_weapon.iter_mut(){
+	for (_entity_weapon, mut weapon, transform_weapon, _sprite_weapon) in query_weapon.iter_mut(){
 		if weapon.request_shoot {
 			if time.last_update().is_some() && time.last_update().unwrap().duration_since(weapon.timer_shoot).as_secs_f32() > 0.2 {
 				weapon.timer_shoot = time.last_update().unwrap();
@@ -158,7 +158,7 @@ fn system_weapon_pickup(
 	mut commands: Commands,
 	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform), Without<WeaponHolder>>,
 	mut query_holder: Query<(Entity, &mut WeaponHolder, &Transform), Without<Weapon>>,
-	buttons: Res<Input<GamepadButton>>,
+	_buttons: Res<Input<GamepadButton>>,
 ){
 	// Get closest player
 	for (entity_holder, mut holder, transform_holder) in query_holder.iter_mut() {

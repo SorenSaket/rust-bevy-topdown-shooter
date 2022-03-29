@@ -4,11 +4,11 @@ use bevy::ecs::schedule::SystemSet;
 
 use bevy::core::FixedTimestep;
 
-use bevy_prototype_lyon::entity::ShapeBundle;
-use bevy_prototype_lyon::prelude::*;
 
 
-use crate::{player::{PluginPlayer, Player}, Health};
+
+
+use crate::{player::{Player}, Health};
 pub struct PluginEnemy;
 
 
@@ -64,17 +64,17 @@ fn create_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
 }
 
 
-fn system_move_enemies(time: Res<Time>, 
+fn system_move_enemies(_time: Res<Time>, 
     mut query: QuerySet<(
         QueryState<(&mut Enemy, &mut Transform)>, 
-        QueryState<(&Transform), With<Player>>
+        QueryState<&Transform, With<Player>>
     )>,) 
 {
     let speed = 3.0;
 
     if let Ok(&player_transform) = query.q1().get_single() {
         
-        for (mut enemy, mut transform) in query.q0().iter_mut() {
+        for (_enemy, mut transform) in query.q0().iter_mut() {
 
             let movement = (player_transform.translation - transform.translation).normalize() * speed;
            

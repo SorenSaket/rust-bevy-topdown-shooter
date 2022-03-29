@@ -15,7 +15,7 @@ pub struct BloodState {
     size: usize
 }
 impl BloodState{
-    pub fn add_blood(&self, pos: Vec2, mut images: &mut ResMut<Assets<Image>>){
+    pub fn add_blood(&self, pos: Vec2, images: &mut ResMut<Assets<Image>>){
         let halfSize = ((self.size as f32))/2.0;
         let x = (pos.x/self.scale+halfSize) as usize;        
         let y = (pos.y/self.scale+halfSize) as usize;
@@ -52,7 +52,7 @@ impl Plugin for PluginBlood {
 
 fn setup(
     mut commands: Commands,
-	mut materials: ResMut<Assets<StandardMaterial>>,
+	_materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ){
     let size_in_pixels:u32 = 1024;
@@ -124,11 +124,11 @@ fn setup(
 
 
 fn system_bloodtrail( 
-	query_player : Query<(&Transform), (With<Bloody>, Changed<Transform>)>, 
+	query_player : Query<&Transform, (With<Bloody>, Changed<Transform>)>, 
 	mut images: ResMut<Assets<Image>>,
 	blood: ResMut<BloodState>
 ){
-	for (transform) in query_player.iter(){
+	for transform in query_player.iter(){
 		blood.add_blood(transform.translation.truncate(), &mut images);
 	}
 }

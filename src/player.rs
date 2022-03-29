@@ -1,15 +1,14 @@
 use bevy::{
 	core::FixedTimestep,
-	prelude::*,
-	sprite::collide_aabb::{collide, Collision}, utils::Instant,
+	prelude::*, utils::Instant,
 };
 use bevy_prototype_lyon::prelude::*;
 
-use bevy_inspector_egui::Inspectable;
 
-use crate::{projectile::spawn_projectile, weapon::*, Shake};
 
-use rand::prelude::random;
+use crate::{weapon::*};
+
+
 pub struct PluginPlayer;
 
 impl Plugin for PluginPlayer {
@@ -42,7 +41,7 @@ pub struct Player {
 	pub timer_shoot: Instant,
 }
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let new_entity = commands.spawn_bundle(SpriteBundle {
+	let _new_entity = commands.spawn_bundle(SpriteBundle {
 		texture: asset_server.load("sword.png"),
 		..Default::default()
 	});
@@ -78,19 +77,19 @@ fn spawn_player(commands: &mut Commands, playerID: Gamepad) {
 }
 
 
-fn remove_player(commands: &mut Commands, playerID: usize) {}
+fn remove_player(_commands: &mut Commands, _playerID: usize) {}
 
 fn system_player_movement(
 	mut query: Query<(&mut Player, &mut Transform, &mut WeaponHolder), Without<Weapon>>,
 	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform, &mut Sprite), Without<Player>>,
 	axes: Res<Axis<GamepadAxis>>,
 	buttons: Res<Input<GamepadButton>>,
-	mut commands: Commands,
+	_commands: Commands,
 ) {
 	let acc = 1.5;
 	let friction = 0.1;
 
-	for (mut player, mut transform, mut weaponholder) in query.iter_mut() {
+	for (mut player, mut transform, _weaponholder) in query.iter_mut() {
 		let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
 		let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
 
@@ -99,20 +98,20 @@ fn system_player_movement(
 
 		let btn_rt2 = GamepadButton(player.gamepad, GamepadButtonType::RightTrigger2);
 		
-		let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
-		let btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
+		let _btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
+		let _btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
 
 		// Player Directions
 		if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
 			let right_stick_pos = Vec2::new(x, y);
-			if (right_stick_pos.length_squared() > 0.02) {
+			if right_stick_pos.length_squared() > 0.02 {
 				player.direction = f32::atan2(y, x);
 			}
 		}
 
 		// Weapon Stuff
 		if let Some(entity_playerWeapon) = &player.weapon {
-			if let Ok((entity_weapon, mut weapon, mut transform_weapon,mut sprite_weapon)) = query_weapon.get_mut(*entity_playerWeapon) {
+			if let Ok((_entity_weapon, mut weapon, mut transform_weapon,mut sprite_weapon)) = query_weapon.get_mut(*entity_playerWeapon) {
 				
 				// Shooting
 				weapon.request_shoot = buttons.pressed(btn_rt2);
@@ -147,7 +146,7 @@ fn system_player_holder(
 	mut query_player: Query<(&mut Player, &mut WeaponHolder)>,
 	buttons: Res<Input<GamepadButton>>
 ){
-	for (mut player, mut weaponholder) in query_player.iter_mut() {
+	for (player, mut weaponholder) in query_player.iter_mut() {
 		let btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
 		weaponholder.request_pickup = buttons.pressed(btn_north);
 	}
@@ -156,7 +155,7 @@ fn system_player_holder(
 fn gamepad_connections(
 	mut commands: Commands,
 	mut gamepad_evr: EventReader<GamepadEvent>,
-	mut query: Query<(&Player)>,
+	mut query: Query<&Player>,
 ) {
 	let mut count = 0;
 	for _ in query.iter_mut() {
