@@ -16,13 +16,16 @@ impl Plugin for PluginPlayer {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(PlayerStates { counter: 0 })
 			.add_system(gamepad_connections)
-			.add_system(gamepad_input_events)
 			.add_startup_system(setup)
 			.add_system_set(
 				SystemSet::new()
 					.with_run_criteria(FixedTimestep::step(1. / 60. as f64))
 					.with_system(system_player_movement),
-			);
+			)
+
+			.add_system(system_player_holder);
+
+
 	}
 }
 
@@ -74,24 +77,20 @@ fn spawn_player(commands: &mut Commands, playerID: Gamepad) {
 		});
 }
 
-fn player_shoot(commands: &mut Commands, playerID: usize, dir: f32) {}
 
 fn remove_player(commands: &mut Commands, playerID: usize) {}
 
 fn system_player_movement(
-	mut query: Query<(&mut Player, &mut Transform)>,
-	mut query_weapon: Query<(Entity, &Weapon, &mut Transform, &mut Sprite), Without<Player>>,
-	mut query_camera: Query<&mut Shake, With<Camera>>,
-	mut weapons: Res<WeaponData>,
+	mut query: Query<(&mut Player, &mut Transform, &mut WeaponHolder), Without<Weapon>>,
+	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform, &mut Sprite), Without<Player>>,
 	axes: Res<Axis<GamepadAxis>>,
 	buttons: Res<Input<GamepadButton>>,
 	mut commands: Commands,
-	time: Res<Time>,
 ) {
 	let acc = 1.5;
 	let friction = 0.1;
 
-	for (mut player, mut transform) in query.iter_mut() {
+	for (mut player, mut transform, mut weaponholder) in query.iter_mut() {
 		let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
 		let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
 
@@ -102,11 +101,7 @@ fn system_player_movement(
 		
 		let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
 		let btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
-		/*
-		if(right_stick_pos.length_squared()< 0.02){
-			return;
-		}*/
-		
+
 		// Player Directions
 		if let (Some(x), Some(y)) = (axes.get(axis_rx), axes.get(axis_ry)) {
 			let right_stick_pos = Vec2::new(x, y);
@@ -117,29 +112,11 @@ fn system_player_movement(
 
 		// Weapon Stuff
 		if let Some(entity_playerWeapon) = &player.weapon {
-			if let Ok((entity_weapon, weapon, mut transform_weapon,mut sprite_weapon)) = query_weapon.get_mut(*entity_playerWeapon) {
-				
-				
+			if let Ok((entity_weapon, mut weapon, mut transform_weapon,mut sprite_weapon)) = query_weapon.get_mut(*entity_playerWeapon) {
 				
 				// Shooting
-				if buttons.pressed(btn_rt2) {
-					
-					if time.last_update().is_some() && time.last_update().unwrap().duration_since(player.timer_shoot).as_secs_f32() > 0.2 {
-						player.timer_shoot = time.last_update().unwrap();
-						spawn_projectile(
-							&mut commands,
-							None,
-							&weapons.weapons[weapon.settings].projectile,
-							transform.translation,
-							player.direction + (weapons.weapons[weapon.settings].spread * (random::<f32>() - 0.5)),
-						);
-	
-						let mut shaker = query_camera.single_mut();
-						shaker.time = 0.1;
+				weapon.request_shoot = buttons.pressed(btn_rt2);
 				
-					} 
-				}
-
 				//Weapon Rotation
 				transform_weapon.rotation = Quat::from_axis_angle(Vec3::Z, player.direction);
 
@@ -162,6 +139,17 @@ fn system_player_movement(
 		// Apply Velocity
 		transform.translation.x += player.velocity.x;
 		transform.translation.y += player.velocity.y;
+	}
+}
+
+
+fn system_player_holder(
+	mut query_player: Query<(&mut Player, &mut WeaponHolder)>,
+	buttons: Res<Input<GamepadButton>>
+){
+	for (mut player, mut weaponholder) in query_player.iter_mut() {
+		let btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
+		weaponholder.request_pickup = buttons.pressed(btn_north);
 	}
 }
 
@@ -189,54 +177,6 @@ fn gamepad_connections(
 
 			}
 			_ => {}
-		}
-	}
-}
-
-fn gamepad_input_events(
-	mut commands: Commands,
-	asset_server: Res<AssetServer>,
-	mut gamepad_evr: EventReader<GamepadEvent>,
-	gamepads: Res<Gamepads>,
-	axes: Res<Axis<GamepadAxis>>,
-	buttons: Res<Input<GamepadButton>>,
-	query: Query<(&Player, &Transform)>,
-) {
-	/*
-	for player in query.iter(){
-
-		gamepad_evr.iter().f
-
-	}
-
-	   // iterates every active game pad
-	for gamepad in gamepads.iter() {
-
-	}
-
-	*/
-
-	// Iterate though all the gamepad events
-	for GamepadEvent(id, event) in gamepad_evr.iter() {
-		let a = query.iter().find(|&(x, _)| x.gamepad == *id);
-
-		if a.is_none() {
-			continue;
-		}
-
-		let (player, transform) = a.unwrap();
-
-		use GamepadEventType::{AxisChanged, ButtonChanged};
-
-		match event {
-			AxisChanged(GamepadAxisType::RightStickX, x) => {
-				// Right Stick moved (X)
-			}
-			AxisChanged(GamepadAxisType::RightStickY, y) => {
-				// Right Stick moved (Y)
-			}
-			ButtonChanged(GamepadButtonType::RightTrigger2, val) => {}
-			_ => {} // don't care about other inputs
 		}
 	}
 }

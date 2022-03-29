@@ -1,11 +1,11 @@
 use std::borrow::Borrow;
 
 use bevy::{
-    prelude::*, render::render_resource::*,
+    prelude::*, render::render_resource::*, utils::Instant,
 };
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, random};
 
-use crate::{projectile::{Projectile, ProjectileSettings}, player::Player};
+use crate::{projectile::{Projectile, ProjectileSettings, spawn_projectile}, player::Player};
 
 pub struct PluginWeapon;
 
@@ -28,8 +28,18 @@ pub struct WeaponSettings{
 #[derive(Component )]
 pub struct Weapon{
 	pub settings: usize,
+	pub timer_shoot: Instant,
+	pub request_shoot: bool,
 	pub owner: Option<Entity>
 }
+
+
+#[derive(Component)]
+pub struct WeaponHolder{
+	pub request_pickup: bool,
+	pub weapon: Option<Entity>,
+}
+
 
 impl Plugin for PluginWeapon {
      fn build(&self, app: &mut App) {
@@ -37,7 +47,9 @@ impl Plugin for PluginWeapon {
 		
        app
 	   .add_startup_system(setup)
-	   .add_system(system_weapon_pickup);
+	   .add_system(system_weapon_pickup)
+	   .add_system(system_weapon_shoot)
+	   ;
 	   
     }
 }
@@ -82,6 +94,9 @@ fn setup(
 
 }
 
+
+
+
 pub fn spawn_weapon(
     commands: &mut Commands, 
     position: Vec3,
@@ -106,41 +121,73 @@ pub fn spawn_weapon(
         },
         ..Default::default()
     })
-    .insert(Weapon{settings: weaponIndex, owner: None });
+    .insert(Weapon{
+		settings: weaponIndex, 
+		owner: None , 
+		timer_shoot: Instant::now(),
+		request_shoot: false
+	});
 }
+
+
+ fn system_weapon_shoot(
+	mut commands: Commands,
+	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform, &mut Sprite)>,
+	time : Res<Time>,
+	weapons : Res<WeaponData>
+){
+	for (entity_weapon, mut weapon, transform_weapon, sprite_weapon) in query_weapon.iter_mut(){
+		if weapon.request_shoot {
+			if time.last_update().is_some() && time.last_update().unwrap().duration_since(weapon.timer_shoot).as_secs_f32() > 0.2 {
+				weapon.timer_shoot = time.last_update().unwrap();
+				spawn_projectile(
+					&mut commands,
+					None,
+					&weapons.weapons[weapon.settings].projectile,
+					transform_weapon.translation,
+					transform_weapon.rotation.z + (weapons.weapons[weapon.settings].spread * (random::<f32>() - 0.5)),
+				);
+			} 
+		}
+	}
+}
+
 
 
 fn system_weapon_pickup(
 	mut commands: Commands,
-	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform), Without<Player>>,
-	mut query_players: Query<(Entity, &mut Player, &Transform), Without<Weapon>>,
+	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform), Without<WeaponHolder>>,
+	mut query_holder: Query<(Entity, &mut WeaponHolder, &Transform), Without<Weapon>>,
 	buttons: Res<Input<GamepadButton>>,
 ){
-	
 	// Get closest player
-	for (entity_player, mut player, transform_player) in query_players.iter_mut() {
-		let btn_north = GamepadButton(player.gamepad, GamepadButtonType::North);
-
-		if(buttons.just_pressed(btn_north)){
-			for (entity_weapon, mut weapon, mut transform_weapon) in query_weapon.iter_mut(){
+	for (entity_holder, mut holder, transform_holder) in query_holder.iter_mut() {
+		// If  do not want to pickup continue
+		if !holder.request_pickup{
+			continue;
+		}
+		// Search for weapon
+		for (entity_weapon, mut weapon, mut transform_weapon) in query_weapon.iter_mut(){
+			// Ignore if the weapon already has a owner
+			if weapon.owner.is_some() {
+				continue;
+			}
+			
+			if Vec2::distance(transform_weapon.translation.truncate(), transform_holder.translation.truncate()) < 128.0 {
+	
+				commands.entity(entity_holder).push_children(&[entity_weapon]);
+	
+				transform_weapon.translation = Vec3::new(0.0, 0.0, transform_weapon.translation.z);
+	
+				weapon.owner = Some(entity_holder);
+	
+				holder.weapon = Some(entity_weapon);
 				
-				if weapon.owner.is_none() {
-					if Vec2::distance(transform_weapon.translation.truncate(), transform_player.translation.truncate()) < 128.0 {
-			
-						commands.entity(entity_player).push_children(&[entity_weapon]);
-			
-						transform_weapon.translation = Vec3::new(0.0, 0.0, transform_weapon.translation.z);
-			
-						weapon.owner = Some(entity_player);
-			
-						player.weapon = Some(entity_weapon);
-						
-						break;
-					}
-				}
+				break;
 			}
 		}
 	}
+
 }
 
 
