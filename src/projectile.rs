@@ -11,20 +11,40 @@ use bevy_prototype_lyon::prelude::*;
 
 use crate::Health;
 use crate::enemy::Enemy;
+use crate::weapon::WeaponData;
 
 pub struct PluginProjectile;
 
-#[derive(Component, Clone)]
+
+pub struct ProjectileData{
+    pub projectiles: Vec<ProjectileSettings>
+}
+
+
+#[derive(Default)]
+pub struct ProjectileSettings{
+    pub texture: Handle<Image>,
+    pub speed: f32,
+    pub lifetime: f32,
+    pub bounces: u32,
+    pub damage: i32
+}
+
+#[derive(Component, Default)]
 pub struct Projectile{
+    pub settings: usize,
     pub speed: f32,
     pub dir: f32,
     pub lifetime: f32,
-    pub damage: i32
+    pub bounces: u32,
+    pub damage: i32,
+    pub owner: Option<Entity>
 }
 
 impl Plugin for PluginProjectile {
     fn build(&self, app: &mut App){
         app
+        .add_startup_system(setup)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(1./60. as f64))
@@ -35,9 +55,20 @@ impl Plugin for PluginProjectile {
     }
 }
 
+fn setup(
+    mut commands: Commands,
+	mut asset_server: Res<AssetServer>
+){
+
+}
+
+
+
 
 pub fn spawn_projectile(
-    commands: &mut Commands, 
+    commands: &mut Commands,
+    owner: Option<Entity>,
+    settings: &ProjectileSettings,
     position: Vec3, 
     dir: f32
     ){
@@ -66,7 +97,15 @@ pub fn spawn_projectile(
             },
         )
     )
-    .insert(Projectile{speed: 50., dir: dir, lifetime: 3.0, damage: 4});
+    .insert(
+        Projectile{
+            owner: owner , 
+            speed: settings.speed, 
+            dir: dir, 
+            lifetime: settings.lifetime,
+            damage: settings.damage,
+            ..Default::default()
+        });
 
 
 }
@@ -76,6 +115,7 @@ fn system_handle_projectile_events(
     query_projectile: Query<(Entity, &Projectile, &mut Transform), (Without<Enemy>)>,
     mut query_enemy: Query<(Entity, &mut Transform, &mut Health), (With<Enemy>, Without<Projectile>)>,
     mut commands: Commands,
+    weapons: Res<WeaponData>
 ) {
 
     for (entity_projectile, projectile, transform_projectile) in query_projectile.iter(){
