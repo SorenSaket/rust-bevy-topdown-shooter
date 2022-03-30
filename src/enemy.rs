@@ -18,7 +18,7 @@ impl Plugin for PluginEnemy {
         .insert_resource(WaveState {
             last_spawn: Instant::now(),
         })
-        .add_system(system_spawner_enemy)
+        //.add_system(system_spawner_enemy)
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(1./60. as f64))
@@ -60,7 +60,7 @@ fn create_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
         ..Default::default()
     })
     .insert(Enemy)
-    .insert(Health{maxHealth: 10,health: 10});
+    .insert(Health{healthmax: 10,health: 10});
 }
 
 

@@ -76,9 +76,6 @@ pub fn spawn_projectile(
         radius: 20.0,
         center: Vec2::ZERO,
     };
-
-
-    
     
     commands.spawn()
     // Shape bundle

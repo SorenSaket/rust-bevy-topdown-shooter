@@ -3,6 +3,7 @@
 use bevy::{
     prelude::*, utils::Instant,
 };
+use bevy_inspector_egui::Inspectable;
 use rand::{random};
 
 use crate::{projectile::{ProjectileSettings, spawn_projectile}};
@@ -21,8 +22,10 @@ pub struct WeaponSettings{
 	pub firerate: f32,
 	pub projectilesPerShot: u32,
 	pub firepointoffset: Vec2,
+	/// The spread between multiple projectiles in radians
 	pub spread: f32,
 	pub inaccuracy: f32,
+	pub kickback: f32,
 }
 
 #[derive(Component )]
@@ -34,7 +37,7 @@ pub struct Weapon{
 }
 
 
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct WeaponHolder{
 	pub request_pickup: bool,
 	pub weapon: Option<Entity>,
@@ -63,9 +66,9 @@ fn setup(
 	weapondata.weapons.push( WeaponSettings{
 		texture: asset_server.load("gun.png"),
 		firerate: 1.0,
-		projectilesPerShot: 1,
-		spread: 0.0,
-		inaccuracy:  0.0,
+		projectilesPerShot: 10,
+		spread: 1.2,
+		inaccuracy:  1.0,
 		projectile: ProjectileSettings{
 			texture: asset_server.load("sword.png"),
 			speed: 16.0,
@@ -132,21 +135,31 @@ pub fn spawn_weapon(
 
  fn system_weapon_shoot(
 	mut commands: Commands,
-	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform, &mut Sprite)>,
+	mut query_weapon: Query<(Entity, &mut Weapon, &GlobalTransform)>,
 	time : Res<Time>,
 	weapons : Res<WeaponData>
 ){
-	for (_entity_weapon, mut weapon, transform_weapon, _sprite_weapon) in query_weapon.iter_mut(){
+	for (_entity_weapon, mut weapon, transform_weapon) in query_weapon.iter_mut(){
 		if weapon.request_shoot {
-			if time.last_update().is_some() && time.last_update().unwrap().duration_since(weapon.timer_shoot).as_secs_f32() > 0.2 {
+			if time.last_update().is_some() && time.last_update().unwrap().duration_since(weapon.timer_shoot).as_secs_f32() > weapons.weapons[weapon.settings].firerate {
+				let weaponsettings = &weapons.weapons[weapon.settings];
+				// reset timer
 				weapon.timer_shoot = time.last_update().unwrap();
-				spawn_projectile(
-					&mut commands,
-					None,
-					&weapons.weapons[weapon.settings].projectile,
-					transform_weapon.translation,
-					transform_weapon.rotation.z + (weapons.weapons[weapon.settings].spread * (random::<f32>() - 0.5)),
-				);
+
+				let rotstart = -(weaponsettings.spread/2.0);
+				let rotspacing = (weaponsettings.spread/(weaponsettings.projectilesPerShot as f32));
+
+				for x in 0..weaponsettings.projectilesPerShot{
+					spawn_projectile(
+						&mut commands,
+						weapon.owner,
+						&weaponsettings.projectile,
+						transform_weapon.translation,
+						transform_weapon.rotation.to_euler(EulerRot::YXZ).2 + rotstart + rotspacing*(x as f32) + (weaponsettings.inaccuracy * (random::<f32>() - 0.5)),
+					);
+				}
+				
+			
 			} 
 		}
 	}

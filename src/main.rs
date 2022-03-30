@@ -1,13 +1,18 @@
+#![allow(unused_parens)]
+#![feature(let_chains)]
 use bevy::{
 	core::FixedTimestep,
 	prelude::*,
 };
+
+use bevy_ecs_tilemap::prelude::*;
+
+
 use bevy_prototype_lyon::prelude::*;
 use bevy_screen_diags::{ScreenDiagsTimer};
 use blood::BloodState;
 use player::Player;
 use rand::{Rng};
-
 
 
 use crate::player::PluginPlayer;
@@ -28,9 +33,12 @@ mod debug;
 use weapon::PluginWeapon;
 mod weapon;
 
+use crate::wall::*;
+mod wall;
+
 /// An implementation of the classic game "Breakout"
 pub const TIME_STEP: f32 = 1.0 / 60.0;
-pub const PPU: u32 = 128;
+pub const PPU: f32 = 32.0;
 
 fn main() {
 	//env::set_var("RUST_BACKTRACE", "full");
@@ -91,7 +99,7 @@ pub struct Enemy;
 #[derive(Component)]
 pub struct Health{
 	pub health: i32,
-	pub maxHealth: i32
+	pub healthmax: i32
 }
 
 impl Health{
@@ -111,12 +119,25 @@ struct GameState{
 	active : bool,
 }
 
-fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	// Add the game's entities to our world
 	// cameras
 	commands.spawn_bundle(OrthographicCameraBundle::new_2d()).insert(Shake{amount: 1.0, time: 0.0});
 
 	commands.spawn_bundle(UiCameraBundle::default());
+
+
+	// tilemap
+/*	let handle: Handle<TiledMap> = asset_server.load("map.tmx");
+
+    let map_entity = commands.spawn().id();
+
+    commands.entity(map_entity).insert_bundle(TiledMapBundle {
+        tiled_map: handle,
+        map: Map::new(0u16, map_entity),
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..Default::default()
+    });*/
 }
 
 

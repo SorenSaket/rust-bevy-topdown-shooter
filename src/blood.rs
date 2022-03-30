@@ -16,9 +16,9 @@ pub struct BloodState {
 }
 impl BloodState{
     pub fn add_blood(&self, pos: Vec2, images: &mut ResMut<Assets<Image>>){
-        let halfSize = ((self.size as f32))/2.0;
-        let x = (pos.x/self.scale+halfSize) as usize;        
-        let y = (pos.y/self.scale+halfSize) as usize;
+        let halfsize = ((self.size as f32))/2.0;
+        let x = (pos.x/self.scale+halfsize) as usize;        
+        let y = (pos.y/self.scale+halfsize) as usize;
 //
         let index : usize = 
         // Convert 2d to 1d index

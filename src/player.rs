@@ -1,12 +1,22 @@
+
+
+use std::ops::Mul;
+
 use bevy::{
 	core::FixedTimestep,
 	prelude::*, utils::Instant,
 };
 use bevy_prototype_lyon::prelude::*;
 
+use crate::PPU;
 
 
-use crate::{weapon::*};
+use crate::{weapon::*, wall::*};
+
+
+
+
+
 
 
 pub struct PluginPlayer;
@@ -22,8 +32,11 @@ impl Plugin for PluginPlayer {
 					.with_system(system_player_movement),
 			)
 
-			.add_system(system_player_holder);
-
+			.add_system(system_player_holder)
+			.add_system(system_player_buildertoggle)
+			.add_system(system_player_builder)
+			
+			;
 
 	}
 }
@@ -34,26 +47,35 @@ struct PlayerStates {
 
 #[derive(Component, Clone)]
 pub struct Player {
+	pub builder: Entity,
+	pub editing: bool,
 	pub direction: f32,
 	pub velocity: Vec2,
-	pub weapon: Option<Entity>,
 	pub gamepad: Gamepad,
 	pub timer_shoot: Instant,
 }
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let _new_entity = commands.spawn_bundle(SpriteBundle {
+	/*let _new_entity = commands.spawn_bundle(SpriteBundle {
 		texture: asset_server.load("sword.png"),
 		..Default::default()
-	});
+	});*/
 }
 
-fn spawn_player(commands: &mut Commands, playerID: Gamepad) {
+fn spawn_player(commands: &mut Commands, gamepad: Gamepad, asset_server: &Res<AssetServer>) {
 	let shape = shapes::RegularPolygon {
 		sides: 6,
 		feature: shapes::RegularPolygonFeature::Radius(32.0),
 		..shapes::RegularPolygon::default()
 	};
 	//let line = shapes::Line()
+	let entity_builder = commands
+	.spawn()
+	.insert_bundle(
+		SpriteBundle{	
+			texture: asset_server.load("builder.png"),
+			..Default::default() 
+		}
+	).id();
 
 	commands
 		.spawn_bundle(GeometryBuilder::build_as(
@@ -66,13 +88,14 @@ fn spawn_player(commands: &mut Commands, playerID: Gamepad) {
 				translation: Vec3::new(0.0, 0.0, 0.8),
 				..Default::default()
 			},
-		))
+		)).insert(WeaponHolder{ request_pickup: false, weapon: None })
 		.insert(Player {
 			velocity: Vec2::new(0., 0.),
-			gamepad: playerID,
-			weapon: None,
+			gamepad,
 			direction: 0.0,
-			timer_shoot: Instant::now()
+			timer_shoot: Instant::now(),
+			editing: false,
+			builder: entity_builder
 		});
 }
 
@@ -80,16 +103,21 @@ fn spawn_player(commands: &mut Commands, playerID: Gamepad) {
 fn remove_player(_commands: &mut Commands, _playerID: usize) {}
 
 fn system_player_movement(
-	mut query: Query<(&mut Player, &mut Transform, &mut WeaponHolder), Without<Weapon>>,
+	mut query_player: Query<(&mut Player, &mut Transform, &WeaponHolder), Without<Weapon>>,
 	mut query_weapon: Query<(Entity, &mut Weapon, &mut Transform, &mut Sprite), Without<Player>>,
 	axes: Res<Axis<GamepadAxis>>,
-	buttons: Res<Input<GamepadButton>>,
-	_commands: Commands,
+	buttons: Res<Input<GamepadButton>>
 ) {
+	
+
 	let acc = 1.5;
 	let friction = 0.1;
 
-	for (mut player, mut transform, _weaponholder) in query.iter_mut() {
+	for (mut player, mut transform, holder) in query_player.iter_mut() {
+		if (player.editing) {
+			continue;
+		}
+
 		let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
 		let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
 
@@ -110,7 +138,7 @@ fn system_player_movement(
 		}
 
 		// Weapon Stuff
-		if let Some(entity_playerWeapon) = &player.weapon {
+		if let Some(entity_playerWeapon) = &holder.weapon {
 			if let Ok((_entity_weapon, mut weapon, mut transform_weapon,mut sprite_weapon)) = query_weapon.get_mut(*entity_playerWeapon) {
 				
 				// Shooting
@@ -126,7 +154,6 @@ fn system_player_movement(
 				}
 			}
 		}
-
 		if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
 			player.velocity.x += x * acc;
 			player.velocity.y += y * acc;
@@ -140,6 +167,55 @@ fn system_player_movement(
 		transform.translation.y += player.velocity.y;
 	}
 }
+
+fn system_player_builder(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut query_player: Query<(&mut Player, &mut Transform)>,
+	mut query_builder: Query<(&mut Sprite, &mut Transform), Without<Player>>,
+	axes: Res<Axis<GamepadAxis>>,
+	buttons: Res<Input<GamepadButton>>
+){	
+	
+	for (mut player, mut transform) in query_player.iter_mut() {
+		if( !player.editing){
+			continue;
+		}
+
+		if(let Ok(mut transform_builder) =  query_builder.get_component_mut::<Transform>(player.builder)){
+			
+			let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
+			let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
+
+			if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
+				transform_builder.translation = 
+				Vec2::new(
+					(transform_builder.translation.x + x),
+					(transform_builder.translation.y + y),
+					).extend(transform_builder.translation.z);
+			}
+
+					
+			let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
+
+			if buttons.just_pressed(btn_south){
+				spawn_wall(&mut commands, &asset_server, transform_builder.translation);
+			}
+		}
+	}
+}
+
+fn system_player_buildertoggle(mut query_player: Query<(&mut Player, &mut Transform)>, buttons: Res<Input<GamepadButton>>){
+	
+	for (mut player, mut transform) in query_player.iter_mut() {
+		let btn_west = GamepadButton(player.gamepad, GamepadButtonType::West);
+
+		if(buttons.just_pressed(btn_west)){
+			player.editing = !player.editing;
+		}
+	}
+}
+
 
 
 fn system_player_holder(
@@ -156,6 +232,7 @@ fn gamepad_connections(
 	mut commands: Commands,
 	mut gamepad_evr: EventReader<GamepadEvent>,
 	mut query: Query<&Player>,
+	asset_server: Res<AssetServer>,
 ) {
 	let mut count = 0;
 	for _ in query.iter_mut() {
@@ -167,7 +244,7 @@ fn gamepad_connections(
 			GamepadEventType::Connected => {
 				println!("New gamepad connected with ID: {:?}", id);
 
-				spawn_player(&mut commands, *id);
+				spawn_player(&mut commands, *id,&asset_server);
 			}
 			GamepadEventType::Disconnected => {
 				// remove_player(&mut commands,count);
@@ -179,3 +256,5 @@ fn gamepad_connections(
 		}
 	}
 }
+
+
