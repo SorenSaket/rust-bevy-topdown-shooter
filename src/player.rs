@@ -53,6 +53,7 @@ pub struct Player {
 	pub velocity: Vec2,
 	pub gamepad: Gamepad,
 	pub timer_shoot: Instant,
+	pub timer_build: Instant,
 }
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	/*let _new_entity = commands.spawn_bundle(SpriteBundle {
@@ -94,6 +95,7 @@ fn spawn_player(commands: &mut Commands, gamepad: Gamepad, asset_server: &Res<As
 			gamepad,
 			direction: 0.0,
 			timer_shoot: Instant::now(),
+			timer_build: Instant::now(),
 			editing: false,
 			builder: entity_builder
 		});
@@ -174,7 +176,8 @@ fn system_player_builder(
 	mut query_player: Query<(&mut Player, &mut Transform)>,
 	mut query_builder: Query<(&mut Sprite, &mut Transform), Without<Player>>,
 	axes: Res<Axis<GamepadAxis>>,
-	buttons: Res<Input<GamepadButton>>
+	buttons: Res<Input<GamepadButton>>,
+	time : Res<Time>
 ){	
 	
 	for (mut player, mut transform) in query_player.iter_mut() {
@@ -184,22 +187,27 @@ fn system_player_builder(
 
 		if(let Ok(mut transform_builder) =  query_builder.get_component_mut::<Transform>(player.builder)){
 			
-			let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
-			let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
-
-			if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-				transform_builder.translation = 
-				Vec2::new(
-					(transform_builder.translation.x + x),
-					(transform_builder.translation.y + y),
-					).extend(transform_builder.translation.z);
-			}
-
-					
-			let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
-
-			if buttons.just_pressed(btn_south){
-				spawn_wall(&mut commands, &asset_server, transform_builder.translation);
+			if time.last_update().is_some() && time.last_update().unwrap().duration_since(player.timer_build).as_secs_f32() > 1.0 {
+				// reset timer
+				player.timer_build = time.last_update().unwrap();
+				
+				let axis_lx = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickX);
+				let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
+	
+				if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
+					transform_builder.translation = 
+					Vec2::new(
+						(transform_builder.translation.x + x),
+						(transform_builder.translation.y + y),
+						).extend(transform_builder.translation.z);
+				}
+	
+						
+				let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
+	
+				if buttons.just_pressed(btn_south){
+					spawn_wall(&mut commands, &asset_server, transform_builder.translation);
+				}
 			}
 		}
 	}

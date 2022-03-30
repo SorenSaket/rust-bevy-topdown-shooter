@@ -66,12 +66,12 @@ fn setup(
 	weapondata.weapons.push( WeaponSettings{
 		texture: asset_server.load("gun.png"),
 		firerate: 1.0,
-		projectilesPerShot: 10,
-		spread: 1.2,
+		projectilesPerShot: 1,
+		spread: 0.0,
 		inaccuracy:  1.0,
 		projectile: ProjectileSettings{
 			texture: asset_server.load("sword.png"),
-			speed: 16.0,
+			speed: 1000.0,
 			lifetime: 2.0,
 			bounces: 0,
 			damage: 1,

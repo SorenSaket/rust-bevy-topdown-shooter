@@ -12,8 +12,8 @@ bevy_prototype_lyon = "0.4.0"
 
 bevy_screen_diags = "*"
 
-# UNUSED
-bevy_rapier2d = { version = "*", features = [ "simd-nightly", "parallel" ] }
+# 
+bevy_rapier2d = { version = "*", features = [ "simd-nightly", "parallel", "render" ] }
 
 bevy-inspector-egui = "0.9.0"
 rand = "*"

@@ -9,6 +9,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 
 use bevy_prototype_lyon::prelude::*;
+use bevy_rapier2d::prelude::*;
 use bevy_screen_diags::{ScreenDiagsTimer};
 use blood::BloodState;
 use player::Player;
@@ -75,6 +76,9 @@ fn main() {
                 .with_system(system_camera_move)
         )
 
+		.add_plugin(RapierRenderPlugin)
+		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+
 		.add_plugin(PluginPlayer)
 		.add_plugin(PluginEnemy)
 		.add_plugin(PluginProjectile)
@@ -119,13 +123,15 @@ struct GameState{
 	active : bool,
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut configuration: ResMut<RapierConfiguration>) {
 	// Add the game's entities to our world
 	// cameras
 	commands.spawn_bundle(OrthographicCameraBundle::new_2d()).insert(Shake{amount: 1.0, time: 0.0});
 
 	commands.spawn_bundle(UiCameraBundle::default());
 
+
+	//configuration.scale = PPU;
 
 	// tilemap
 /*	let handle: Handle<TiledMap> = asset_server.load("map.tmx");
