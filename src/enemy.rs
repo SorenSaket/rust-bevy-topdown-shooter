@@ -35,21 +35,7 @@ struct WaveState {
 pub struct Enemy;
 
 
-fn system_spawner_enemy(mut commands: Commands, time: Res<Time>, mut wave_state: ResMut<WaveState>, asset_server :Res<AssetServer> ){
-    if time.last_update().is_some() && time.last_update().unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 0.2 {
-        return;
-    } 
-    else if time.last_update().is_some() {
-        wave_state.last_spawn = time.last_update().unwrap();
-    }
-
-    create_enemy(&mut commands,asset_server);
-}
-
-
-fn create_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
-  
-
+fn spawn_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
     commands.spawn_bundle(SpriteBundle{
         texture : asset_server.load("sh.png"),
         transform: Transform{
@@ -61,6 +47,19 @@ fn create_enemy(commands : &mut Commands,asset_server: Res<AssetServer>){
     })
     .insert(Enemy)
     .insert(Health{healthmax: 10,health: 10});
+}
+
+
+
+fn system_spawner_enemy(mut commands: Commands, time: Res<Time>, mut wave_state: ResMut<WaveState>, asset_server :Res<AssetServer> ){
+    if time.last_update().is_some() && time.last_update().unwrap().duration_since(wave_state.last_spawn).as_secs_f32() < 0.2 {
+        return;
+    } 
+    else if time.last_update().is_some() {
+        wave_state.last_spawn = time.last_update().unwrap();
+    }
+
+    spawn_enemy(&mut commands,asset_server);
 }
 
 

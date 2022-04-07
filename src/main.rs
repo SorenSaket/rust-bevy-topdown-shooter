@@ -37,6 +37,12 @@ mod weapon;
 use crate::wall::*;
 mod wall;
 
+use navigation::PluginNavigation;
+mod navigation;
+
+use grid::PluginGrid;
+mod grid;
+
 /// An implementation of the classic game "Breakout"
 pub const TIME_STEP: f32 = 1.0 / 60.0;
 pub const PPU: f32 = 32.0;
@@ -78,12 +84,14 @@ fn main() {
 
 		.add_plugin(RapierRenderPlugin)
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
-
+		.add_plugin(PluginGrid)
+		.add_plugin(PluginNavigation)
 		.add_plugin(PluginPlayer)
 		.add_plugin(PluginEnemy)
 		.add_plugin(PluginProjectile)
 		.add_plugin(PluginWeapon)
 		.add_plugin(PluginBlood)
+
 		 //.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(bevy_screen_diags::ScreenDiagsPlugin)
 		.add_plugin(DebugPlugin)

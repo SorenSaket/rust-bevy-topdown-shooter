@@ -11,7 +11,7 @@ use bevy_prototype_lyon::prelude::*;
 use crate::PPU;
 
 
-use crate::{weapon::*, wall::*};
+use crate::{weapon::*, wall::*, grid::*};
 
 
 
@@ -31,20 +31,20 @@ impl Plugin for PluginPlayer {
 					.with_run_criteria(FixedTimestep::step(1. / 60. as f64))
 					.with_system(system_player_movement),
 			)
-
+			.add_system(animate_sprite)
 			.add_system(system_player_holder)
 			.add_system(system_player_buildertoggle)
 			.add_system(system_player_builder)
 			
 			;
-
 	}
 }
 
 struct PlayerStates {
 	counter: usize,
 }
-
+#[derive(Component)]
+struct AnimationTimer(Timer);
 #[derive(Component, Clone)]
 pub struct Player {
 	pub builder: Entity,
@@ -62,34 +62,39 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	});*/
 }
 
-fn spawn_player(commands: &mut Commands, gamepad: Gamepad, asset_server: &Res<AssetServer>) {
-	let shape = shapes::RegularPolygon {
-		sides: 6,
-		feature: shapes::RegularPolygonFeature::Radius(32.0),
-		..shapes::RegularPolygon::default()
-	};
+fn spawn_player(
+	commands: &mut Commands, 
+	gamepad: Gamepad, 
+	asset_server: &Res<AssetServer>,
+	mut texture_atlases: &mut ResMut<Assets<TextureAtlas>>
+){
+
 	//let line = shapes::Line()
 	let entity_builder = commands
+	
 	.spawn()
 	.insert_bundle(
 		SpriteBundle{	
 			texture: asset_server.load("builder.png"),
 			..Default::default() 
 		}
-	).id();
+	).insert(GridObject{ position: IVec2::new(0,0)})
+	
+	.id();
+
+	let texture_handle = asset_server.load("player.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(64.0, 120.0), 5, 1);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
 	commands
-		.spawn_bundle(GeometryBuilder::build_as(
-			&shape,
-			DrawMode::Outlined {
-				fill_mode: FillMode::color(Color::CYAN),
-				outline_mode: StrokeMode::new(Color::BLACK, 4.0),
-			},
-			Transform {
-				translation: Vec3::new(0.0, 0.0, 0.8),
-				..Default::default()
-			},
-		)).insert(WeaponHolder{ request_pickup: false, weapon: None })
+		.spawn_bundle(SpriteSheetBundle {
+            texture_atlas: texture_atlas_handle,
+            transform: Transform::from_scale(Vec3::splat(1.0)),
+            ..Default::default()
+        }
+		)
+		.insert(AnimationTimer(Timer::from_seconds(0.1, true)))
+		.insert(WeaponHolder{ request_pickup: false, weapon: None })
 		.insert(Player {
 			velocity: Vec2::new(0., 0.),
 			gamepad,
@@ -101,6 +106,23 @@ fn spawn_player(commands: &mut Commands, gamepad: Gamepad, asset_server: &Res<As
 		});
 }
 
+fn animate_sprite(
+    time: Res<Time>,
+    texture_atlases: Res<Assets<TextureAtlas>>,
+    mut query: Query<(
+        &mut AnimationTimer,
+        &mut TextureAtlasSprite,
+        &Handle<TextureAtlas>,
+    )>,
+) {
+    for (mut timer, mut sprite, texture_atlas_handle) in query.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.just_finished() {
+            let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
+            sprite.index = (sprite.index + 1) % texture_atlas.textures.len();
+        }
+    }
+}
 
 fn remove_player(_commands: &mut Commands, _playerID: usize) {}
 
@@ -174,7 +196,7 @@ fn system_player_builder(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut query_player: Query<(&mut Player, &mut Transform)>,
-	mut query_builder: Query<(&mut Sprite, &mut Transform), Without<Player>>,
+	mut query_builder: Query<(&mut Sprite, &mut Transform, &mut GridObject), Without<Player>>,
 	axes: Res<Axis<GamepadAxis>>,
 	buttons: Res<Input<GamepadButton>>,
 	time : Res<Time>
@@ -185,9 +207,9 @@ fn system_player_builder(
 			continue;
 		}
 
-		if(let Ok(mut transform_builder) =  query_builder.get_component_mut::<Transform>(player.builder)){
+		if(let Ok((_,mut transform_builder, mut gridobject_builder)) =  query_builder.get_mut(player.builder)){
 			
-			if time.last_update().is_some() && time.last_update().unwrap().duration_since(player.timer_build).as_secs_f32() > 1.0 {
+			if time.last_update().is_some() && time.last_update().unwrap().duration_since(player.timer_build).as_secs_f32() > 0.1 {
 				// reset timer
 				player.timer_build = time.last_update().unwrap();
 				
@@ -195,19 +217,21 @@ fn system_player_builder(
 				let axis_ly = GamepadAxis(player.gamepad, GamepadAxisType::LeftStickY);
 	
 				if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-					transform_builder.translation = 
-					Vec2::new(
-						(transform_builder.translation.x + x),
-						(transform_builder.translation.y + y),
-						).extend(transform_builder.translation.z);
+					if f32::abs(x) > 0.5{
+						gridobject_builder.position.x += f32::signum(x) as i32;
+					}
+					if f32::abs(y) > 0.5{
+						gridobject_builder.position.y += f32::signum(y) as i32;
+					}
 				}
 	
 						
-				let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
+				
+			}
+			let btn_south = GamepadButton(player.gamepad, GamepadButtonType::South);
 	
-				if buttons.just_pressed(btn_south){
-					spawn_wall(&mut commands, &asset_server, transform_builder.translation);
-				}
+			if buttons.just_pressed(btn_south){
+				spawn_wall(&mut commands, &asset_server, transform_builder.translation);
 			}
 		}
 	}
@@ -241,6 +265,7 @@ fn gamepad_connections(
 	mut gamepad_evr: EventReader<GamepadEvent>,
 	mut query: Query<&Player>,
 	asset_server: Res<AssetServer>,
+	mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
 	let mut count = 0;
 	for _ in query.iter_mut() {
@@ -252,7 +277,7 @@ fn gamepad_connections(
 			GamepadEventType::Connected => {
 				println!("New gamepad connected with ID: {:?}", id);
 
-				spawn_player(&mut commands, *id,&asset_server);
+				spawn_player(&mut commands, *id,&asset_server,&mut texture_atlases);
 			}
 			GamepadEventType::Disconnected => {
 				// remove_player(&mut commands,count);
